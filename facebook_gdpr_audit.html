@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GDPR Audit & Risk Report — Facebook / Meta</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Inter:wght@300;400;500;600&family=Playfair+Display:wght@700;900&display=swap');
+
+  :root {
+    --bg: #0D0F14;
+    --surface: #13161D;
+    --surface2: #1A1E28;
+    --border: #252A38;
+    --accent: #E8442A;
+    --accent2: #F0A500;
+    --safe: #26A96C;
+    --text: #E4E6ED;
+    --muted: #6B7280;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'Inter', sans-serif;
+    --display: 'Playfair Display', serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 24px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo-area {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .logo-icon {
+    width: 32px; height: 32px;
+    background: var(--accent);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+
+  .logo-text {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    color: var(--text);
+  }
+
+  .logo-sub {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    display: block;
+  }
+
+  .header-meta {
+    display: flex;
+    gap: 24px;
+    align-items: center;
+  }
+
+  .meta-chip {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+  }
+
+  .generate-btn {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 8px 18px;
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+
+  .generate-btn:hover { opacity: 0.85; }
+  .generate-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* ── HERO ── */
+  .hero {
+    padding: 56px 40px 40px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .case-tag {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+
+  .hero-title {
+    font-family: var(--display);
+    font-size: clamp(32px, 4vw, 52px);
+    font-weight: 900;
+    line-height: 1.1;
+    color: var(--text);
+    max-width: 720px;
+    margin-bottom: 20px;
+  }
+
+  .hero-title span { color: var(--accent); }
+
+  .hero-desc {
+    font-size: 14px;
+    color: var(--muted);
+    max-width: 600px;
+    margin-bottom: 32px;
+    line-height: 1.7;
+  }
+
+  /* Controls */
+  .controls {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    margin-bottom: 8px;
+  }
+
+  .ctrl-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .ctrl-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  select, input[type="text"] {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+    appearance: none;
+    cursor: pointer;
+    min-width: 160px;
+  }
+
+  select:focus, input[type="text"]:focus {
+    outline: 1px solid var(--accent);
+  }
+
+  /* ── STATS BAR ── */
+  .stats-bar {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .stat-item {
+    flex: 1;
+    padding: 20px 28px;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .stat-item:last-child { border-right: none; }
+
+  .stat-val {
+    font-family: var(--display);
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .stat-val.red { color: var(--accent); }
+  .stat-val.amber { color: var(--accent2); }
+  .stat-val.green { color: var(--safe); }
+
+  .stat-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  /* ── MAIN LAYOUT ── */
+  .main {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 0;
+    min-height: calc(100vh - 280px);
+  }
+
+  .report-area {
+    border-right: 1px solid var(--border);
+    padding: 32px 40px;
+  }
+
+  .sidebar {
+    padding: 24px;
+    background: var(--surface);
+  }
+
+  /* ── SECTION ── */
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section-eyebrow {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  .section-title {
+    font-family: var(--sans);
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  /* ── AUDIT LOG TABLE ── */
+  .log-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    margin-bottom: 32px;
+  }
+
+  .log-table th {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: left;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .log-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+    color: var(--text);
+    font-size: 12px;
+  }
+
+  .log-table tr:hover td { background: var(--surface2); }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .badge.critical { background: rgba(232,68,42,0.15); color: var(--accent); border: 1px solid rgba(232,68,42,0.3); }
+  .badge.high { background: rgba(240,165,0,0.12); color: var(--accent2); border: 1px solid rgba(240,165,0,0.3); }
+  .badge.medium { background: rgba(99,102,241,0.12); color: #818CF8; border: 1px solid rgba(99,102,241,0.3); }
+  .badge.low { background: rgba(38,169,108,0.12); color: var(--safe); border: 1px solid rgba(38,169,108,0.3); }
+  .badge.open { background: rgba(232,68,42,0.1); color: var(--accent); }
+  .badge.closed { background: rgba(38,169,108,0.1); color: var(--safe); }
+  .badge.partial { background: rgba(240,165,0,0.1); color: var(--accent2); }
+
+  /* ── RISK CARDS ── */
+  .risk-grid {
+    display: grid;
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+
+  .risk-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 18px;
+  }
+
+  .risk-card.critical-card { border-left: 3px solid var(--accent); }
+  .risk-card.high-card { border-left: 3px solid var(--accent2); }
+  .risk-card.medium-card { border-left: 3px solid #818CF8; }
+
+  .risk-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 8px;
+  }
+
+  .risk-card-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    max-width: 75%;
+  }
+
+  .risk-card-body {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.6;
+    margin-bottom: 10px;
+  }
+
+  .risk-meta {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .risk-meta-item {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+  }
+
+  .risk-meta-item span {
+    color: var(--text);
+  }
+
+  /* ── AI OUTPUT AREA ── */
+  .ai-output {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    min-height: 120px;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--text);
+    margin-bottom: 20px;
+    position: relative;
+  }
+
+  .ai-output.loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+
+  .ai-output.empty {
+    color: var(--muted);
+    font-style: italic;
+    font-size: 12px;
+  }
+
+  .ai-tag {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    display: block;
+  }
+
+  /* Spinner */
+  .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── SIDEBAR ── */
+  .sidebar-section {
+    margin-bottom: 24px;
+  }
+
+  .sidebar-title {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .timeline-item {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 14px;
+    position: relative;
+  }
+
+  .timeline-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    margin-top: 5px;
+    flex-shrink: 0;
+  }
+
+  .dot-red { background: var(--accent); }
+  .dot-amber { background: var(--accent2); }
+  .dot-green { background: var(--safe); }
+
+  .timeline-text { font-size: 12px; color: var(--text); }
+  .timeline-date {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    display: block;
+    margin-top: 2px;
+  }
+
+  .article-ref {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    font-size: 12px;
+  }
+
+  .article-ref-id {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--accent);
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  .article-ref-text {
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.5;
+  }
+
+  .score-bar {
+    margin-bottom: 10px;
+  }
+
+  .score-bar-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    margin-bottom: 5px;
+    color: var(--text);
+  }
+
+  .score-bar-track {
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .score-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 1s ease;
+  }
+
+  .fill-red { background: var(--accent); }
+  .fill-amber { background: var(--accent2); }
+  .fill-green { background: var(--safe); }
+
+  .prompt-area {
+    margin-bottom: 12px;
+  }
+
+  .prompt-input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-family: var(--sans);
+    font-size: 13px;
+    resize: vertical;
+    min-height: 80px;
+  }
+
+  .prompt-input:focus { outline: 1px solid var(--accent); }
+
+  .run-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .run-btn {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+
+  .run-btn:hover { opacity: 0.85; }
+  .run-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .clear-btn {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 11px;
+    cursor: pointer;
+  }
+
+  .clear-btn:hover { color: var(--text); }
+
+  /* Footer */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 16px 40px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--surface);
+  }
+
+  .footer-text {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+  }
+
+  @media (max-width: 900px) {
+    .main { grid-template-columns: 1fr; }
+    .sidebar { border-top: 1px solid var(--border); }
+    .stats-bar { flex-wrap: wrap; }
+    .stat-item { min-width: 50%; border-right: none; border-bottom: 1px solid var(--border); }
+    header, .hero, .report-area { padding-left: 20px; padding-right: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo-area">
+    <div class="logo-icon">⚖</div>
+    <div>
+      <span class="logo-text">GDPR AUDIT SYSTEM</span>
+      <span class="logo-sub">AI-Powered Compliance Intelligence</span>
+    </div>
+  </div>
+  <div class="header-meta">
+    <span class="meta-chip">SUBJECT: FACEBOOK / META PLATFORMS INC.</span>
+    <span class="meta-chip" id="live-time"></span>
+    <button class="generate-btn" id="fullReportBtn" onclick="generateFullReport()">⟳ Regenerate Full Report</button>
+  </div>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <p class="case-tag">▸ REGULATORY INTELLIGENCE // EU GDPR ENFORCEMENT</p>
+  <h1 class="hero-title">Facebook GDPR <span>Violation</span> &amp; Risk Assessment Audit</h1>
+  <p class="hero-desc">AI-generated compliance audit log covering documented GDPR violations, risk assessment gaps, and ongoing enforcement actions against Meta Platforms (Facebook). Powered by Claude for dynamic analysis.</p>
+  <div class="controls">
+    <div class="ctrl-group">
+      <span class="ctrl-label">Violation Category</span>
+      <select id="violationFilter">
+        <option value="all">All Violations</option>
+        <option value="consent">Consent & Legal Basis</option>
+        <option value="transparency">Transparency & Notice</option>
+        <option value="transfer">Cross-Border Data Transfer</option>
+        <option value="dpia">DPIA Gaps</option>
+        <option value="breach">Data Breach</option>
+        <option value="rights">Data Subject Rights</option>
+      </select>
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">Risk Level</span>
+      <select id="riskFilter">
+        <option value="all">All Levels</option>
+        <option value="critical">Critical</option>
+        <option value="high">High</option>
+        <option value="medium">Medium</option>
+      </select>
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">Custom Query for AI</span>
+      <input type="text" id="queryInput" placeholder="e.g. analyse Article 6 gaps..." style="min-width:240px"/>
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">&nbsp;</span>
+      <button class="run-btn" onclick="runCustomQuery()">Ask AI →</button>
+    </div>
+  </div>
+</section>
+
+<!-- STATS BAR -->
+<div class="stats-bar">
+  <div class="stat-item">
+    <span class="stat-val red">€1.7B+</span>
+    <span class="stat-label">Total Fines Issued</span>
+  </div>
+  <div class="stat-item">
+    <span class="stat-val amber">18</span>
+    <span class="stat-label">Open Violations</span>
+  </div>
+  <div class="stat-item">
+    <span class="stat-val red">7</span>
+    <span class="stat-label">Critical Risk Gaps</span>
+  </div>
+  <div class="stat-item">
+    <span class="stat-val amber">12</span>
+    <span class="stat-label">DPIA Gaps Identified</span>
+  </div>
+  <div class="stat-item">
+    <span class="stat-val green">3</span>
+    <span class="stat-label">Remediated Items</span>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="report-area">
+
+    <!-- AI ANALYSIS BOX -->
+    <div style="margin-bottom:32px;">
+      <div class="section-header">
+        <div>
+          <p class="section-eyebrow">AI Generated</p>
+          <p class="section-title">Executive Risk Summary</p>
+        </div>
+      </div>
+      <div class="ai-output empty" id="execSummary">
+        Click "Regenerate Full Report" to generate an AI-powered executive summary of Facebook's GDPR risk posture.
+      </div>
+    </div>
+
+    <!-- AUDIT LOG -->
+    <div style="margin-bottom:32px;">
+      <div class="section-header">
+        <div>
+          <p class="section-eyebrow">Audit Log</p>
+          <p class="section-title">Documented GDPR Violation Records</p>
+        </div>
+      </div>
+      <table class="log-table" id="auditTable">
+        <thead>
+          <tr>
+            <th>Log ID</th>
+            <th>Date</th>
+            <th>Violation</th>
+            <th>Article</th>
+            <th>Category</th>
+            <th>Severity</th>
+            <th>Fine</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="logBody">
+          <!-- populated by JS -->
+        </tbody>
+      </table>
+    </div>
+
+    <!-- RISK ASSESSMENT GAPS -->
+    <div>
+      <div class="section-header">
+        <div>
+          <p class="section-eyebrow">Risk Assessment</p>
+          <p class="section-title">Identified Compliance Gaps & Residual Risks</p>
+        </div>
+      </div>
+      <div class="risk-grid" id="riskCards">
+        <!-- populated by JS -->
+      </div>
+    </div>
+
+    <!-- CUSTOM AI RESPONSE -->
+    <div id="customResponseSection" style="display:none; margin-top:24px;">
+      <div class="section-header">
+        <div>
+          <p class="section-eyebrow">AI Response</p>
+          <p class="section-title">Custom Query Analysis</p>
+        </div>
+      </div>
+      <div class="ai-output empty" id="customResponse"></div>
+    </div>
+
+  </div><!-- /report-area -->
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+
+    <!-- COMPLIANCE SCORES -->
+    <div class="sidebar-section">
+      <p class="sidebar-title">Compliance Score by Domain</p>
+      <div class="score-bar">
+        <div class="score-bar-label"><span>Consent Management</span><span style="color:var(--accent)">18%</span></div>
+        <div class="score-bar-track"><div class="score-bar-fill fill-red" style="width:18%"></div></div>
+      </div>
+      <div class="score-bar">
+        <div class="score-bar-label"><span>Transparency</span><span style="color:var(--accent)">24%</span></div>
+        <div class="score-bar-track"><div class="score-bar-fill fill-red" style="width:24%"></div></div>
+      </div>
+      <div class="score-bar">
+        <div class="score-bar-label"><span>Data Transfers</span><span style="color:var(--accent)">15%</span></div>
+        <div class="score-bar-track"><div class="score-bar-fill fill-red" style="width:15%"></div></div>
+      </div>
+      <div class="score-bar">
+        <div class="score-bar-label"><span>DPIA Compliance</span><span style="color:var(--accent2)">41%</span></div>
+        <div class="score-bar-track"><div class="score-bar-fill fill-amber" style="width:41%"></div></div>
+      </div>
+      <div class="score-bar">
+        <div class="score-bar-label"><span>Breach Notification</span><span style="color:var(--accent2)">55%</span></div>
+        <div class="score-bar-track"><div class="score-bar-fill fill-amber" style="width:55%"></div></div>
+      </div>
+      <div class="score-bar">
+        <div class="score-bar-label"><span>Data Subject Rights</span><span style="color:var(--safe)">63%</span></div>
+        <div class="score-bar-track"><div class="score-bar-fill fill-green" style="width:63%"></div></div>
+      </div>
+    </div>
+
+    <!-- TIMELINE -->
+    <div class="sidebar-section">
+      <p class="sidebar-title">Enforcement Timeline</p>
+      <div class="timeline-item">
+        <div class="timeline-dot dot-red"></div>
+        <div>
+          <div class="timeline-text">DPC Ireland: €1.2B fine — US data transfers</div>
+          <span class="timeline-date">May 2023</span>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-dot dot-red"></div>
+        <div>
+          <div class="timeline-text">DPC: €390M — forced consent for ads</div>
+          <span class="timeline-date">Jan 2023</span>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-dot dot-amber"></div>
+        <div>
+          <div class="timeline-text">DPC: €265M — DSAR data scraping breach</div>
+          <span class="timeline-date">Nov 2022</span>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-dot dot-amber"></div>
+        <div>
+          <div class="timeline-text">DPC: €17M — 2018 data breach series</div>
+          <span class="timeline-date">Mar 2022</span>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-dot dot-amber"></div>
+        <div>
+          <div class="timeline-text">EDPB override: Unlawful ad targeting basis</div>
+          <span class="timeline-date">Dec 2022</span>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-dot dot-green"></div>
+        <div>
+          <div class="timeline-text">Meta launches consent-based ads (EU)</div>
+          <span class="timeline-date">Nov 2023</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- GDPR ARTICLES -->
+    <div class="sidebar-section">
+      <p class="sidebar-title">Primary Articles Breached</p>
+      <div class="article-ref">
+        <span class="article-ref-id">Art. 6 — Lawful Basis</span>
+        <p class="article-ref-text">Meta repeatedly failed to establish valid legal basis for processing personal data for advertising.</p>
+      </div>
+      <div class="article-ref">
+        <span class="article-ref-id">Art. 13/14 — Transparency</span>
+        <p class="article-ref-text">Privacy notices found to be insufficiently clear on data use for profiling and ad targeting.</p>
+      </div>
+      <div class="article-ref">
+        <span class="article-ref-id">Art. 46 — Transfer Safeguards</span>
+        <p class="article-ref-text">SCCs deemed insufficient post-Schrems II for EU–US data flows of EU users.</p>
+      </div>
+      <div class="article-ref">
+        <span class="article-ref-id">Art. 35 — DPIA</span>
+        <p class="article-ref-text">High-risk processing (behavioural profiling, facial recognition) conducted without adequate DPIA.</p>
+      </div>
+      <div class="article-ref">
+        <span class="article-ref-id">Art. 33 — Breach Notification</span>
+        <p class="article-ref-text">Multiple breaches not reported to DPC within 72-hour window; incomplete notification content.</p>
+      </div>
+    </div>
+
+    <!-- AI QUERY BOX (SIDEBAR) -->
+    <div class="sidebar-section">
+      <p class="sidebar-title">Ask AI About This Report</p>
+      <div class="prompt-area">
+        <textarea class="prompt-input" id="sidebarPrompt" placeholder="e.g. What remediation steps should Meta take for the data transfer violations?"></textarea>
+      </div>
+      <div class="run-row">
+        <button class="run-btn" onclick="runSidebarQuery()">Analyse →</button>
+        <button class="clear-btn" onclick="clearSidebar()">Clear</button>
+      </div>
+      <div class="ai-output empty" id="sidebarResponse" style="margin-top:12px; min-height:80px; font-size:12px;"></div>
+    </div>
+
+  </aside>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <span class="footer-text">GDPR Audit Intelligence System • AI-generated analysis for educational/compliance research purposes only</span>
+  <span class="footer-text">Data sources: DPC Ireland, EDPB, NOYB, Official EU enforcement registers</span>
+</footer>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────
+const violations = [
+  { id:"LOG-001", date:"2023-05-22", violation:"Unlawful EU–US Data Transfers (SCCs void post-Schrems II)", article:"Art. 46", category:"transfer", severity:"critical", fine:"€1,200,000,000", status:"partial" },
+  { id:"LOG-002", date:"2023-01-04", violation:"Forced consent for personalised ads (contractual necessity misused)", article:"Art. 6", category:"consent", severity:"critical", fine:"€390,000,000", status:"closed" },
+  { id:"LOG-003", date:"2022-11-28", violation:"Failure to protect personal data from scraping (533M users exposed)", article:"Art. 5(1)(f)", category:"breach", severity:"critical", fine:"€265,000,000", status:"closed" },
+  { id:"LOG-004", date:"2022-03-15", violation:"Inadequate security measures — 12 data breach notifications", article:"Art. 33", category:"breach", severity:"high", fine:"€17,000,000", status:"closed" },
+  { id:"LOG-005", date:"2022-12-31", violation:"Behavioural advertising without valid consent (EDPB override)", article:"Art. 6 / Art. 9", category:"consent", severity:"critical", fine:"Pending", status:"open" },
+  { id:"LOG-006", date:"2023-08-10", violation:"Insufficient privacy notice for Instagram users", article:"Art. 13", category:"transparency", severity:"high", fine:"Pending", status:"open" },
+  { id:"LOG-007", date:"2024-01-18", violation:"WhatsApp data sharing with Meta for ad profiling", article:"Art. 6 / Art. 9", category:"consent", severity:"critical", fine:"Pending", status:"open" },
+  { id:"LOG-008", date:"2021-09-02", violation:"Failure to conduct DPIA for facial recognition (DeepFace)", article:"Art. 35", category:"dpia", severity:"high", fine:"N/A (withdrawn)", status:"closed" },
+  { id:"LOG-009", date:"2024-03-05", violation:"DSAR response delays exceeding 30-day statutory limit", article:"Art. 12", category:"rights", severity:"medium", fine:"Under review", status:"open" },
+  { id:"LOG-010", date:"2023-11-12", violation:"Children's data processed without parental consent (under-13)", article:"Art. 8", category:"consent", severity:"critical", fine:"Pending", status:"open" },
+];
+
+const risks = [
+  {
+    id:"RSK-001", title:"AI-Powered Ad Targeting Without DPIA", severity:"critical",
+    body:"Meta's AI systems conduct large-scale behavioural profiling using sensitive inferences (mental health, politics, religion). No documented DPIA covers these high-risk processing activities under Art. 35(3)(a).",
+    article:"Art. 35", owner:"DPC Ireland", gap:"DPIA not conducted", residual:"Extreme"
+  },
+  {
+    id:"RSK-002", title:"Cross-Border Transfer Gap Post-DPF Uncertainty", severity:"critical",
+    body:"Despite EU-US Data Privacy Framework adoption (Jul 2023), legal challenges by NOYB create residual transfer risk. EU user data continues flowing to US servers without certainty of framework longevity.",
+    article:"Art. 46 / Art. 49", owner:"EDPB", gap:"No fallback SCCs in place", residual:"High"
+  },
+  {
+    id:"RSK-003", title:"Consent Withdrawal Mechanism Non-Compliant", severity:"critical",
+    body:"While consent-based ads were introduced in Nov 2023, the opt-out flow is found to have excessive friction (dark patterns). GDPR Art. 7(3) requires withdrawal to be as easy as giving consent.",
+    article:"Art. 7(3)", owner:"DPC / BEUC", gap:"Dark patterns in withdrawal UI", residual:"High"
+  },
+  {
+    id:"RSK-004", title:"Legitimate Interest Assessments Not Documented", severity:"high",
+    body:"Meta relies on legitimate interests (Art. 6(1)(f)) for several processing activities. No evidence of documented Legitimate Interest Assessments (LIAs) balancing user rights against business interests.",
+    article:"Art. 6(1)(f)", owner:"Internal DPO", gap:"LIA documentation absent", residual:"High"
+  },
+  {
+    id:"RSK-005", title:"Data Retention Periods Undefined for Ad Data", severity:"high",
+    body:"Advertising audience data (Custom Audiences, Lookalike Audiences) lacks documented retention schedules. GDPR Art. 5(1)(e) storage limitation principle not demonstrably met.",
+    article:"Art. 5(1)(e)", owner:"DPC Ireland", gap:"No retention schedule", residual:"Medium"
+  },
+  {
+    id:"RSK-006", title:"Third-Party Pixel Data Without Lawful Basis", severity:"high",
+    body:"Meta Pixel embedded on millions of third-party sites collects user data even for non-Facebook users. No lawful basis established; ePrivacy Directive and GDPR simultaneously breached.",
+    article:"Art. 6 / ePrivacy", owner:"French CNIL, German DPAs", gap:"No consent for off-platform tracking", residual:"High"
+  },
+  {
+    id:"RSK-007", title:"Profiling of Minors via Age Estimation (Insufficient)", severity:"medium",
+    body:"Meta's age verification for Instagram Teen Accounts relies on AI estimation, not verification. Children's data may be processed as adult data, violating Art. 8 and Children's Code requirements.",
+    article:"Art. 8", owner:"ICO (UK) / DPC", gap:"Age verification not robust", residual:"Medium"
+  },
+];
+
+// ── RENDER LOG ──────────────────────────────────────────────
+function renderLog(filter = { category: 'all', severity: 'all' }) {
+  const tbody = document.getElementById('logBody');
+  const filtered = violations.filter(v =>
+    (filter.category === 'all' || v.category === filter.category) &&
+    (filter.severity === 'all' || v.severity === filter.severity)
+  );
+  tbody.innerHTML = filtered.map(v => `
+    <tr>
+      <td style="font-family:var(--mono);color:var(--muted);font-size:10px;">${v.id}</td>
+      <td style="font-family:var(--mono);font-size:10px;color:var(--muted);white-space:nowrap">${v.date}</td>
+      <td style="max-width:280px">${v.violation}</td>
+      <td style="font-family:var(--mono);font-size:10px;color:#818CF8;white-space:nowrap">${v.article}</td>
+      <td><span class="badge medium">${v.category}</span></td>
+      <td><span class="badge ${v.severity}">${v.severity}</span></td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--accent2)">${v.fine}</td>
+      <td><span class="badge ${v.status}">${v.status}</span></td>
+    </tr>
+  `).join('');
+}
+
+function renderRisks() {
+  const container = document.getElementById('riskCards');
+  container.innerHTML = risks.map(r => `
+    <div class="risk-card ${r.severity}-card">
+      <div class="risk-card-header">
+        <span class="risk-card-title">${r.title}</span>
+        <span class="badge ${r.severity}">${r.severity}</span>
+      </div>
+      <p class="risk-card-body">${r.body}</p>
+      <div class="risk-meta">
+        <span class="risk-meta-item">Article: <span>${r.article}</span></span>
+        <span class="risk-meta-item">Owner: <span>${r.owner}</span></span>
+        <span class="risk-meta-item">Gap: <span>${r.gap}</span></span>
+        <span class="risk-meta-item">Residual: <span>${r.residual}</span></span>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── FILTERS ──────────────────────────────────────────────────
+document.getElementById('violationFilter').addEventListener('change', applyFilters);
+document.getElementById('riskFilter').addEventListener('change', applyFilters);
+
+function applyFilters() {
+  const cat = document.getElementById('violationFilter').value;
+  const sev = document.getElementById('riskFilter').value;
+  renderLog({ category: cat, severity: sev });
+}
+
+// ── CLOCK ────────────────────────────────────────────────────
+function updateClock() {
+  const el = document.getElementById('live-time');
+  if (el) el.textContent = new Date().toUTCString().replace('GMT', 'UTC');
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── AI CALLS ─────────────────────────────────────────────────
+const VIOLATION_SUMMARY = violations.map(v =>
+  `${v.id}: ${v.violation} | ${v.article} | ${v.severity} | Fine: ${v.fine} | Status: ${v.status}`
+).join('\n');
+
+const RISK_SUMMARY = risks.map(r =>
+  `${r.id}: ${r.title} | Severity: ${r.severity} | Gap: ${r.gap} | Article: ${r.article}`
+).join('\n');
+
+const CONTEXT = `You are a GDPR compliance expert AI assistant generating an audit report for Facebook / Meta Platforms Inc.
+
+Documented GDPR violations:
+${VIOLATION_SUMMARY}
+
+Identified risk assessment gaps:
+${RISK_SUMMARY}
+
+Key enforcement context: The Irish Data Protection Commission (DPC) is the lead supervisory authority. The European Data Protection Board (EDPB) has exercised binding decision powers. Meta has received over €1.7B in GDPR fines as of 2024.`;
+
+async function callClaude(prompt) {
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-6",
+      max_tokens: 1000,
+      system: CONTEXT,
+      messages: [{ role: "user", content: prompt }]
+    })
+  });
+  const data = await response.json();
+  return data.content?.map(i => i.text || "").join("") || "No response received.";
+}
+
+function setLoading(el) {
+  el.className = 'ai-output loading';
+  el.innerHTML = '<div class="spinner"></div> Generating analysis…';
+}
+
+function setContent(el, text) {
+  el.className = 'ai-output';
+  el.innerHTML = `<span class="ai-tag">▸ AI Generated Analysis</span>${text.replace(/\n/g,'<br>')}`;
+}
+
+function setError(el, err) {
+  el.className = 'ai-output empty';
+  el.textContent = 'Error: ' + err;
+}
+
+async function generateFullReport() {
+  const el = document.getElementById('execSummary');
+  const btn = document.getElementById('fullReportBtn');
+  btn.disabled = true;
+  setLoading(el);
+  try {
+    const text = await callClaude(
+      `Generate a structured executive risk summary for the Facebook/Meta GDPR audit report. Include: 
+      1. Overall compliance posture (2-3 sentences)
+      2. Top 3 critical risk areas 
+      3. Immediate remediation priorities 
+      4. Regulatory outlook and expected enforcement trajectory
+      Keep it concise, professional, and use specific article references. Format with clear sections.`
+    );
+    setContent(el, text);
+  } catch(e) {
+    setError(el, e.message);
+  }
+  btn.disabled = false;
+}
+
+async function runCustomQuery() {
+  const q = document.getElementById('queryInput').value.trim();
+  if (!q) return;
+  const section = document.getElementById('customResponseSection');
+  const el = document.getElementById('customResponse');
+  section.style.display = 'block';
+  setLoading(el);
+  try {
+    const text = await callClaude(`User query about the Facebook GDPR audit: "${q}"\n\nProvide a detailed, expert analysis referencing specific violations and GDPR articles from the audit data.`);
+    setContent(el, text);
+  } catch(e) {
+    setError(el, e.message);
+  }
+}
+
+async function runSidebarQuery() {
+  const q = document.getElementById('sidebarPrompt').value.trim();
+  if (!q) return;
+  const el = document.getElementById('sidebarResponse');
+  setLoading(el);
+  try {
+    const text = await callClaude(`Question about the Facebook/Meta GDPR compliance audit: "${q}"\n\nProvide a concise, practical answer (150-200 words max) with specific GDPR article references.`);
+    setContent(el, text);
+  } catch(e) {
+    setError(el, e.message);
+  }
+}
+
+function clearSidebar() {
+  document.getElementById('sidebarPrompt').value = '';
+  const el = document.getElementById('sidebarResponse');
+  el.className = 'ai-output empty';
+  el.textContent = '';
+}
+
+// Enter key for query input
+document.getElementById('queryInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') runCustomQuery();
+});
+
+// ── INIT ─────────────────────────────────────────────────────
+renderLog();
+renderRisks();
+</script>
+</body>
+</html>
