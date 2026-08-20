@@ -1,0 +1,433 @@
+import { useState, useRef, useEffect } from "react";
+
+const PHASES = [
+  { id: "acquire", label: "01 · Acquire", icon: "🔌" },
+  { id: "preserve", label: "02 · Preserve", icon: "🔒" },
+  { id: "analyze", label: "03 · Analyze", icon: "🔬" },
+  { id: "report", label: "04 · Report", icon: "📋" },
+];
+
+const USB_IMAGE = {
+  label: "KINGSTON_8GB",
+  serial: "5D2F-9A1C",
+  size: "7.45 GB",
+  filesystem: "FAT32",
+  entries: [
+    { name: "autorun.inf", type: "file", size: "312 B", modified: "2024-11-02 03:17", flag: "suspicious", note: "Autorun entry points to hidden executable" },
+    { name: "System32", type: "dir", size: "—", modified: "2024-11-02 03:18", flag: "suspicious", note: "Fake Windows system directory — social engineering" },
+    { name: "System32/svchost32.exe", type: "file", size: "89 KB", modified: "2024-11-02 03:18", flag: "malicious", note: "Trojan dropper — matches known malware hash" },
+    { name: "System32/config.dat", type: "file", size: "4.1 KB", modified: "2024-11-02 03:18", flag: "malicious", note: "Encrypted C2 config with embedded IP" },
+    { name: "documents/report_final.docx", type: "file", size: "210 KB", modified: "2024-10-29 14:55", flag: "clean", note: "Normal Word document, no macros" },
+    { name: "documents/passwords_backup.txt", type: "file", size: "1.8 KB", modified: "2024-10-30 22:10", flag: "sensitive", note: "Plaintext credential dump — victim data" },
+    { name: "photos/IMG_0041.jpg", type: "file", size: "3.2 MB", modified: "2024-10-28 10:00", flag: "clean", note: "Personal photo, no embedded payloads" },
+    { name: "$RECYCLE.BIN/svchost32_old.exe", type: "file", size: "76 KB", modified: "2024-11-01 22:44", flag: "malicious", note: "Deleted malware variant — recovered from recycle bin" },
+  ],
+};
+
+const HASH_DATA = {
+  "svchost32.exe": { md5: "d41d8cd98f00b204e9800998ecf8427e", sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", known: true, family: "Trojan.GenericKD.47291" },
+  "svchost32_old.exe": { md5: "9e107d9d372bb6826bd81d3542a419d8", sha256: "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824", known: true, family: "Trojan.GenericKD.47188" },
+  "config.dat": { md5: "098f6bcd4621d373cade4e832627b4f6", sha256: "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a4", known: false, family: "N/A" },
+};
+
+const STRINGS_OUTPUT = `[config.dat] Extracted strings:
+  → C2 IP: 185.220.101.47:4444
+  → User-Agent: Mozilla/5.0 (compatible; bot/1.0)
+  → Persistence key: HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run
+  → Campaign ID: USB_DROP_2024_Q4
+
+[svchost32.exe] Extracted strings:
+  → cmd.exe /c powershell -enc <base64_payload>
+  → CreateRemoteThread injection target: explorer.exe
+  → %APPDATA%\\Microsoft\\Windows\\svchost32.exe
+  → "This program cannot be run in DOS mode."`;
+
+const TIMELINE = [
+  { time: "2024-10-28 10:00", event: "Personal files copied to USB — legitimate use", flag: "clean" },
+  { time: "2024-10-30 22:10", event: "passwords_backup.txt created — possible credential staging", flag: "suspicious" },
+  { time: "2024-11-01 22:44", event: "First malware variant (svchost32_old.exe) dropped and then deleted", flag: "malicious" },
+  { time: "2024-11-02 03:17", event: "autorun.inf written — persistence mechanism installed", flag: "malicious" },
+  { time: "2024-11-02 03:18", event: "Final payload (svchost32.exe + config.dat) deployed in fake System32 dir", flag: "malicious" },
+];
+
+const FLAG_STYLE = {
+  malicious: "bg-red-900/60 text-red-300 border border-red-700",
+  suspicious: "bg-yellow-900/60 text-yellow-300 border border-yellow-700",
+  sensitive: "bg-purple-900/60 text-purple-300 border border-purple-700",
+  clean: "bg-green-900/40 text-green-400 border border-green-800",
+};
+
+const FLAG_DOT = {
+  malicious: "bg-red-500",
+  suspicious: "bg-yellow-400",
+  sensitive: "bg-purple-400",
+  clean: "bg-green-500",
+};
+
+function TerminalLine({ text, delay = 0, onDone }) {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => { setVisible(true); if (onDone) setTimeout(onDone, 80); }, delay);
+    return () => clearTimeout(t);
+  }, []);
+  if (!visible) return null;
+  return <div className="font-mono text-sm text-green-300 leading-relaxed">{text}</div>;
+}
+
+function TypedBlock({ lines, onComplete }) {
+  const [shown, setShown] = useState(0);
+  const next = () => setShown(s => { const n = s + 1; if (n >= lines.length && onComplete) onComplete(); return n; });
+  return (
+    <div className="space-y-0.5">
+      {lines.slice(0, shown + 1).map((l, i) => (
+        <TerminalLine key={i} text={l} delay={i === 0 ? 100 : 0} onDone={i < lines.length - 1 ? next : (onComplete || undefined)} />
+      ))}
+    </div>
+  );
+}
+
+export default function USBForensics() {
+  const [phase, setPhase] = useState("acquire");
+  const [acquired, setAcquired] = useState(false);
+  const [preserved, setPreserved] = useState(false);
+  const [analyzeStep, setAnalyzeStep] = useState(0); // 0=none,1=dir,2=hash,3=strings,4=timeline
+  const [reportText, setReportText] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const bottomRef = useRef();
+
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [phase, analyzeStep, reportText]);
+
+  const generateReport = async () => {
+    setAiLoading(true);
+    setReportText("");
+    const findings = USB_IMAGE.entries.filter(e => e.flag !== "clean").map(e => `${e.name} [${e.flag}]: ${e.note}`).join("\n");
+    const prompt = `You are a digital forensics analyst. Write a concise professional forensic investigation report for a compromised USB drive with these findings:\n\nDevice: ${USB_IMAGE.label} | Serial: ${USB_IMAGE.serial}\n\nTimeline of Compromise:\n${TIMELINE.map(t => `${t.time} — ${t.event}`).join("\n")}\n\nKey Findings:\n${findings}\n\nNetwork Indicator: C2 at 185.220.101.47:4444\nMalware Family: Trojan.GenericKD.47291\n\nWrite: Executive Summary, Attack Vector, Malware Behavior, Indicators of Compromise (IOCs), and Recommendations. Keep it under 350 words. Use professional language.`;
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 1000, messages: [{ role: "user", content: prompt }] }),
+      });
+      const data = await res.json();
+      const text = data.content?.map(b => b.text || "").join("") || "Report generation failed.";
+      setReportText(text);
+    } catch {
+      setReportText("⚠ API error. Check your connection.");
+    }
+    setAiLoading(false);
+  };
+
+  return (
+    <div style={{ background: "#0a0e14", minHeight: "100vh", fontFamily: "'JetBrains Mono', 'Fira Code', monospace", color: "#c9d1d9" }}>
+      {/* Header */}
+      <div style={{ background: "#0d1117", borderBottom: "1px solid #21262d", padding: "18px 28px", display: "flex", alignItems: "center", gap: 16 }}>
+        <div style={{ fontSize: 22 }}>🔍</div>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 15, letterSpacing: 2, color: "#58a6ff", textTransform: "uppercase" }}>USB Forensic Investigator</div>
+          <div style={{ fontSize: 11, color: "#6e7681", letterSpacing: 1 }}>Digital Evidence Examination Console · v1.0</div>
+        </div>
+        <div style={{ marginLeft: "auto", fontSize: 11, color: "#3fb950", background: "#0d2a0d", padding: "4px 12px", borderRadius: 4, border: "1px solid #238636" }}>● WRITE-PROTECTED MODE</div>
+      </div>
+
+      {/* Phase Nav */}
+      <div style={{ background: "#0d1117", borderBottom: "1px solid #21262d", display: "flex", gap: 0 }}>
+        {PHASES.map(p => {
+          const unlocked = (p.id === "acquire") || (p.id === "preserve" && acquired) || (p.id === "analyze" && preserved) || (p.id === "report" && analyzeStep >= 4);
+          const active = phase === p.id;
+          return (
+            <button key={p.id} onClick={() => unlocked && setPhase(p.id)}
+              style={{ padding: "12px 22px", fontSize: 12, letterSpacing: 1, fontFamily: "inherit", cursor: unlocked ? "pointer" : "not-allowed", background: active ? "#161b22" : "transparent", color: active ? "#58a6ff" : unlocked ? "#8b949e" : "#3d444d", borderBottom: active ? "2px solid #58a6ff" : "2px solid transparent", border: "none", transition: "all 0.2s" }}>
+              {p.icon} {p.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Main */}
+      <div style={{ maxWidth: 900, margin: "0 auto", padding: "28px 20px" }}>
+
+        {/* ACQUIRE */}
+        {phase === "acquire" && (
+          <div>
+            <SectionHeader title="Phase 1 — Evidence Acquisition" sub="Identify and document the suspect device before touching anything." />
+            <div style={{ background: "#0d1117", border: "1px solid #21262d", borderRadius: 8, padding: 24, marginBottom: 20 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+                <span style={{ fontSize: 36 }}>💾</span>
+                <div>
+                  <div style={{ fontWeight: 700, color: "#e6edf3", fontSize: 16 }}>{USB_IMAGE.label}</div>
+                  <div style={{ fontSize: 12, color: "#6e7681" }}>Serial: {USB_IMAGE.serial} · {USB_IMAGE.size} · {USB_IMAGE.filesystem}</div>
+                </div>
+                <div style={{ marginLeft: "auto", fontSize: 11, padding: "4px 10px", background: "#161b22", border: "1px solid #30363d", borderRadius: 4, color: "#f0883e" }}>EVIDENCE TAG #USB-001</div>
+              </div>
+              <InfoRow label="Acquisition Method" value="Bit-for-bit forensic image (dd / FTK Imager)" />
+              <InfoRow label="Hash Verification" value="MD5 + SHA-256 computed on raw image" />
+              <InfoRow label="Write Blocker" value="Tableau T8-R2 hardware write blocker — ACTIVE" />
+              <InfoRow label="Chain of Custody" value="Logged — Investigator: D. Kumar · Badge #4412" />
+            </div>
+            {!acquired ? (
+              <button onClick={() => setAcquired(true)} style={btnStyle("#1f6feb", "#58a6ff")}>
+                🔌 Acquire Forensic Image
+              </button>
+            ) : (
+              <div>
+                <div style={{ background: "#0d2a0d", border: "1px solid #238636", borderRadius: 6, padding: "12px 18px", marginBottom: 16, fontSize: 13, color: "#3fb950" }}>
+                  ✓ Image acquired successfully · SHA-256 match confirmed · Evidence hash locked
+                </div>
+                <button onClick={() => setPhase("preserve")} style={btnStyle("#238636", "#3fb950")}>
+                  Continue to Preservation →
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* PRESERVE */}
+        {phase === "preserve" && (
+          <div>
+            <SectionHeader title="Phase 2 — Evidence Preservation" sub="Ensure integrity. Never work on the original — always use the forensic copy." />
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
+              {[
+                { icon: "🔒", title: "Write Blocker Active", desc: "Hardware-level protection prevents any writes to original media" },
+                { icon: "📦", title: "Forensic Copy Created", desc: "Working copy made from verified image — original untouched" },
+                { icon: "🔐", title: "Hash Recorded", desc: "MD5 and SHA-256 hashes logged for court admissibility" },
+                { icon: "📝", title: "Chain of Custody", desc: "Every access timestamped and signed by investigator" },
+              ].map(c => (
+                <div key={c.title} style={{ background: "#0d1117", border: "1px solid #21262d", borderRadius: 8, padding: 18 }}>
+                  <div style={{ fontSize: 24, marginBottom: 8 }}>{c.icon}</div>
+                  <div style={{ fontWeight: 600, color: "#e6edf3", marginBottom: 4, fontSize: 13 }}>{c.title}</div>
+                  <div style={{ fontSize: 12, color: "#6e7681", lineHeight: 1.6 }}>{c.desc}</div>
+                </div>
+              ))}
+            </div>
+            {!preserved ? (
+              <button onClick={() => setPreserved(true)} style={btnStyle("#1f6feb", "#58a6ff")}>
+                🔒 Confirm Preservation Checklist
+              </button>
+            ) : (
+              <div>
+                <div style={{ background: "#0d2a0d", border: "1px solid #238636", borderRadius: 6, padding: "12px 18px", marginBottom: 16, fontSize: 13, color: "#3fb950" }}>
+                  ✓ Preservation complete — all integrity checks passed
+                </div>
+                <button onClick={() => setPhase("analyze")} style={btnStyle("#238636", "#3fb950")}>
+                  Continue to Analysis →
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ANALYZE */}
+        {phase === "analyze" && (
+          <div>
+            <SectionHeader title="Phase 3 — Evidence Analysis" sub="Examine the forensic copy. Run each tool in sequence." />
+
+            {/* Step 1: Directory Listing */}
+            <AnalysisCard step={1} title="Directory & File Listing" cmd="ls -laR /media/usb_image/" active={analyzeStep >= 0} done={analyzeStep >= 1}>
+              {analyzeStep >= 1 && (
+                <div>
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
+                      <thead>
+                        <tr style={{ borderBottom: "1px solid #21262d" }}>
+                          {["NAME", "TYPE", "SIZE", "MODIFIED", "STATUS"].map(h => (
+                            <th key={h} style={{ textAlign: "left", padding: "6px 10px", color: "#6e7681", fontWeight: 600, letterSpacing: 1 }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {USB_IMAGE.entries.map(e => (
+                          <tr key={e.name} style={{ borderBottom: "1px solid #161b22", cursor: "pointer", background: selectedFile === e.name ? "#161b22" : "transparent" }}
+                            onClick={() => setSelectedFile(selectedFile === e.name ? null : e.name)}>
+                            <td style={{ padding: "7px 10px", color: e.flag === "malicious" ? "#ff7b72" : e.flag === "suspicious" ? "#e3b341" : e.flag === "sensitive" ? "#bc8cff" : "#58a6ff" }}>{e.name}</td>
+                            <td style={{ padding: "7px 10px", color: "#6e7681" }}>{e.type}</td>
+                            <td style={{ padding: "7px 10px", color: "#6e7681" }}>{e.size}</td>
+                            <td style={{ padding: "7px 10px", color: "#6e7681", whiteSpace: "nowrap" }}>{e.modified}</td>
+                            <td style={{ padding: "7px 10px" }}>
+                              <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 3, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1,
+                                background: e.flag === "malicious" ? "#3d0808" : e.flag === "suspicious" ? "#2d1f00" : e.flag === "sensitive" ? "#1a0d2e" : "#0d2a0d",
+                                color: e.flag === "malicious" ? "#ff7b72" : e.flag === "suspicious" ? "#e3b341" : e.flag === "sensitive" ? "#bc8cff" : "#3fb950" }}>
+                                {e.flag}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {selectedFile && (() => {
+                    const f = USB_IMAGE.entries.find(e => e.name === selectedFile);
+                    return f ? (
+                      <div style={{ marginTop: 14, background: "#161b22", borderRadius: 6, padding: "12px 16px", fontSize: 12, color: "#8b949e", border: "1px solid #21262d" }}>
+                        <span style={{ color: "#58a6ff" }}>ℹ Analyst Note → </span>{f.note}
+                      </div>
+                    ) : null;
+                  })()}
+                </div>
+              )}
+              {analyzeStep === 0 && <RunBtn onClick={() => setAnalyzeStep(1)} label="▶ Run ls -laR" />}
+            </AnalysisCard>
+
+            {/* Step 2: Hash Verification */}
+            {analyzeStep >= 1 && (
+              <AnalysisCard step={2} title="Hash Verification & Malware Lookup" cmd="sha256sum suspicious_files | grep -F -f known_hashes.db" active done={analyzeStep >= 2}>
+                {analyzeStep >= 2 ? (
+                  <div style={{ fontSize: 12 }}>
+                    {Object.entries(HASH_DATA).map(([file, info]) => (
+                      <div key={file} style={{ marginBottom: 14, padding: "10px 14px", background: "#0d1117", borderRadius: 6, borderLeft: `3px solid ${info.known ? "#ff7b72" : "#6e7681"}` }}>
+                        <div style={{ color: "#e6edf3", fontWeight: 600, marginBottom: 4 }}>{file}</div>
+                        <div style={{ color: "#6e7681" }}>MD5: <span style={{ color: "#8b949e" }}>{info.md5}</span></div>
+                        <div style={{ color: "#6e7681" }}>SHA-256: <span style={{ color: "#8b949e" }}>{info.sha256}</span></div>
+                        <div style={{ marginTop: 6 }}>
+                          {info.known
+                            ? <span style={{ color: "#ff7b72", fontWeight: 700 }}>⚠ KNOWN MALWARE · Family: {info.family}</span>
+                            : <span style={{ color: "#6e7681" }}>— No match in threat intel DB</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : <RunBtn onClick={() => setAnalyzeStep(2)} label="▶ Run Hash Verification" />}
+              </AnalysisCard>
+            )}
+
+            {/* Step 3: String Extraction */}
+            {analyzeStep >= 2 && (
+              <AnalysisCard step={3} title="String Extraction & IOC Carving" cmd="strings -n 6 *.exe *.dat | grep -E '(http|cmd|HKCU|\.exe|[0-9]+\.[0-9]+)'" active done={analyzeStep >= 3}>
+                {analyzeStep >= 3 ? (
+                  <pre style={{ fontSize: 11, color: "#3fb950", lineHeight: 1.8, overflowX: "auto", whiteSpace: "pre-wrap" }}>{STRINGS_OUTPUT}</pre>
+                ) : <RunBtn onClick={() => setAnalyzeStep(3)} label="▶ Run strings extractor" />}
+              </AnalysisCard>
+            )}
+
+            {/* Step 4: Timeline */}
+            {analyzeStep >= 3 && (
+              <AnalysisCard step={4} title="MAC Timeline Reconstruction" cmd="mactime -b bodyfile.csv -d | sort" active done={analyzeStep >= 4}>
+                {analyzeStep >= 4 ? (
+                  <div>
+                    {TIMELINE.map((t, i) => (
+                      <div key={i} style={{ display: "flex", gap: 14, marginBottom: 10, alignItems: "flex-start" }}>
+                        <div style={{ minWidth: 160, fontSize: 11, color: "#6e7681", paddingTop: 2 }}>{t.time}</div>
+                        <div style={{ width: 3, alignSelf: "stretch", borderRadius: 2, background: t.flag === "malicious" ? "#ff7b72" : t.flag === "suspicious" ? "#e3b341" : "#3fb950", minHeight: 20 }} />
+                        <div style={{ fontSize: 12, color: t.flag === "malicious" ? "#ff7b72" : t.flag === "suspicious" ? "#e3b341" : "#3fb950" }}>{t.event}</div>
+                      </div>
+                    ))}
+                    <button onClick={() => setPhase("report")} style={{ ...btnStyle("#238636", "#3fb950"), marginTop: 20 }}>
+                      Continue to Report Generation →
+                    </button>
+                  </div>
+                ) : <RunBtn onClick={() => setAnalyzeStep(4)} label="▶ Reconstruct Timeline" />}
+              </AnalysisCard>
+            )}
+          </div>
+        )}
+
+        {/* REPORT */}
+        {phase === "report" && (
+          <div>
+            <SectionHeader title="Phase 4 — Forensic Report Generation" sub="AI-generated professional report based on your investigation findings." />
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 24 }}>
+              <StatCard value="3" label="Malicious Files" color="#ff7b72" />
+              <StatCard value="1" label="Suspicious Files" color="#e3b341" />
+              <StatCard value="1" label="Sensitive Data Files" color="#bc8cff" />
+            </div>
+            <div style={{ marginBottom: 16, background: "#0d1117", border: "1px solid #21262d", borderRadius: 8, padding: 18 }}>
+              <div style={{ fontSize: 12, color: "#6e7681", marginBottom: 10 }}>KEY INDICATORS OF COMPROMISE</div>
+              <div style={{ fontSize: 12, color: "#ff7b72" }}>● C2 Server: 185.220.101.47:4444</div>
+              <div style={{ fontSize: 12, color: "#ff7b72" }}>● Malware: Trojan.GenericKD.47291 + .47188</div>
+              <div style={{ fontSize: 12, color: "#e3b341" }}>● Persistence: HKCU Run key injection</div>
+              <div style={{ fontSize: 12, color: "#e3b341" }}>● Attack Vector: USB drop + autorun.inf</div>
+            </div>
+            {!reportText && !aiLoading && (
+              <button onClick={generateReport} style={btnStyle("#1f6feb", "#58a6ff")}>
+                🤖 Generate AI Forensic Report
+              </button>
+            )}
+            {aiLoading && (
+              <div style={{ display: "flex", alignItems: "center", gap: 10, color: "#58a6ff", fontSize: 13 }}>
+                <span style={{ animation: "spin 1s linear infinite", display: "inline-block" }}>⟳</span> Generating report via Claude AI…
+              </div>
+            )}
+            {reportText && (
+              <div style={{ background: "#0d1117", border: "1px solid #30363d", borderRadius: 8, padding: 24, marginTop: 8 }}>
+                <div style={{ fontSize: 11, color: "#6e7681", marginBottom: 16, letterSpacing: 1 }}>FORENSIC INVESTIGATION REPORT · AUTO-GENERATED · {new Date().toLocaleDateString()}</div>
+                <pre style={{ fontSize: 13, color: "#c9d1d9", whiteSpace: "pre-wrap", lineHeight: 1.8, fontFamily: "inherit" }}>{reportText}</pre>
+                <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid #21262d", fontSize: 11, color: "#6e7681" }}>
+                  Investigator: D. Kumar · Case #USB-2024-001 · Generated by USB Forensic Investigator v1.0
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div ref={bottomRef} />
+      </div>
+
+      <style>{`
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        * { box-sizing: border-box; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0d1117; }
+        ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+        tr:hover { background: #161b22 !important; }
+        button:hover { opacity: 0.85; }
+      `}</style>
+    </div>
+  );
+}
+
+function SectionHeader({ title, sub }) {
+  return (
+    <div style={{ marginBottom: 24 }}>
+      <h2 style={{ fontFamily: "inherit", fontSize: 16, fontWeight: 700, color: "#e6edf3", margin: 0, letterSpacing: 1 }}>{title}</h2>
+      <p style={{ fontSize: 12, color: "#6e7681", margin: "4px 0 0", lineHeight: 1.6 }}>{sub}</p>
+    </div>
+  );
+}
+
+function InfoRow({ label, value }) {
+  return (
+    <div style={{ display: "flex", gap: 12, padding: "8px 0", borderBottom: "1px solid #161b22", fontSize: 12 }}>
+      <div style={{ color: "#6e7681", minWidth: 160 }}>{label}</div>
+      <div style={{ color: "#c9d1d9" }}>{value}</div>
+    </div>
+  );
+}
+
+function StatCard({ value, label, color }) {
+  return (
+    <div style={{ background: "#0d1117", border: `1px solid ${color}33`, borderRadius: 8, padding: "18px 20px", textAlign: "center" }}>
+      <div style={{ fontSize: 32, fontWeight: 700, color }}>{value}</div>
+      <div style={{ fontSize: 11, color: "#6e7681", marginTop: 4, letterSpacing: 1 }}>{label}</div>
+    </div>
+  );
+}
+
+function AnalysisCard({ step, title, cmd, children, active, done }) {
+  return (
+    <div style={{ background: "#0d1117", border: `1px solid ${done ? "#238636" : "#21262d"}`, borderRadius: 8, padding: 20, marginBottom: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+        <div style={{ width: 24, height: 24, borderRadius: "50%", background: done ? "#238636" : "#1f6feb", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "#fff", flexShrink: 0 }}>
+          {done ? "✓" : step}
+        </div>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#e6edf3" }}>{title}</div>
+          <div style={{ fontSize: 11, color: "#3fb950", marginTop: 2 }}>$ {cmd}</div>
+        </div>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function RunBtn({ onClick, label }) {
+  return (
+    <button onClick={onClick} style={{ ...btnStyle("#1f6feb", "#58a6ff"), marginTop: 4 }}>{label}</button>
+  );
+}
+
+function btnStyle(bg, color) {
+  return {
+    background: bg, color, border: "none", padding: "10px 22px", borderRadius: 6,
+    fontSize: 13, fontFamily: "inherit", cursor: "pointer", fontWeight: 600, letterSpacing: 0.5,
+  };
+}
